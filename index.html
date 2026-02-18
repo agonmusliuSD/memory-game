@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory — Card Match</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #fdf8f0;
+    --surface: #fff;
+    --card-back: #4a90d9;
+    --card-back2: #357abd;
+    --text: #1a1a2e;
+    --muted: #9a9aaa;
+    --accent: #f5a623;
+    --accent2: #e8546a;
+    --green: #27ae60;
+    --shadow: rgba(0,0,0,0.1);
+    --radius: 14px;
+  }
+
+  body {
+    background: var(--bg);
+    background-image: radial-gradient(circle at 20% 20%, #fef3d0 0%, transparent 50%),
+                      radial-gradient(circle at 80% 80%, #fde8e8 0%, transparent 50%);
+    font-family: 'Nunito', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 40px;
+    gap: 0;
+  }
+
+  /* ── SCREENS ── */
+  .screen { width: 100%; max-width: 540px; display: none; flex-direction: column; align-items: center; }
+  .screen.active { display: flex; }
+
+  /* ── HOME SCREEN ── */
+  .logo {
+    margin-top: 40px;
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--text);
+    letter-spacing: -2px;
+    text-align: center;
+    line-height: 1;
+  }
+  .logo span { color: var(--accent); }
+
+  .tagline {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+
+  .card-preview {
+    display: flex;
+    gap: 12px;
+    margin: 36px 0 32px;
+  }
+
+  .preview-card {
+    width: 64px; height: 84px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+    box-shadow: 0 6px 20px var(--shadow);
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .preview-card:nth-child(1) { background: #fff3d6; animation-delay: 0s; }
+  .preview-card:nth-child(2) { background: #d6eeff; animation-delay: 0.4s; }
+  .preview-card:nth-child(3) { background: #ffd6e0; animation-delay: 0.8s; }
+  .preview-card:nth-child(4) { background: #d6ffe8; animation-delay: 1.2s; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .name-section {
+    width: 100%;
+    margin-bottom: 24px;
+  }
+
+  .name-section label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .name-section input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e8e4dc;
+    border-radius: 10px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--surface);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .name-section input:focus { border-color: var(--accent); }
+  .name-section input::placeholder { color: #ccc; font-weight: 400; }
+
+  .level-select {
+    width: 100%;
+    margin-bottom: 28px;
+  }
+
+  .level-select label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .level-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .level-card {
+    background: var(--surface);
+    border: 2px solid #e8e4dc;
+    border-radius: var(--radius);
+    padding: 16px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .level-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .level-card.selected { border-color: var(--accent); background: #fff8ec; box-shadow: 0 4px 16px rgba(245,166,35,0.2); }
+  .level-card.locked { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+  .level-card .icon { font-size: 1.6rem; margin-bottom: 6px; }
+  .level-card .name { font-size: 0.8rem; font-weight: 800; color: var(--text); text-transform: uppercase; letter-spacing: 0.05em; }
+  .level-card .pairs { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+  .level-card .lock { font-size: 0.65rem; color: var(--muted); margin-top: 4px; }
+
+  .btn {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'Nunito', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(245,166,35,0.4);
+  }
+  .btn-primary:hover { background: #e8960f; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245,166,35,0.5); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 2px solid #e8e4dc;
+    margin-top: 10px;
+  }
+  .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+  .btn-small {
+    width: auto;
+    padding: 10px 24px;
+    font-size: 0.85rem;
+  }
+
+  /* ── GAME SCREEN ── */
+  .game-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-top: 8px;
+  }
+
+  .game-header .back-btn {
+    background: var(--surface);
+    border: 2px solid #e8e4dc;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .game-header .back-btn:hover { border-color: var(--muted); color: var(--text); }
+
+  .game-stats {
+    display: flex;
+    gap: 16px;
+  }
+
+  .stat-pill {
+    background: var(--surface);
+    border: 2px solid #e8e4dc;
+    border-radius: 50px;
+    padding: 6px 14px;
+    text-align: center;
+    min-width: 70px;
+  }
+
+  .stat-pill .val {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .stat-pill .lbl {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .level-badge {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: #fff8ec;
+    border: 2px solid #f5d98a;
+    border-radius: 50px;
+    padding: 6px 14px;
+  }
+
+  /* progress bar */
+  .progress-wrap {
+    width: 100%;
+    height: 6px;
+    background: #e8e4dc;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  /* ── CARD GRID ── */
+  .card-grid {
+    width: 100%;
+    display: grid;
+    gap: 10px;
+  }
+
+  .card-grid.easy  { grid-template-columns: repeat(4, 1fr); }
+  .card-grid.medium { grid-template-columns: repeat(5, 1fr); }
+  .card-grid.hard  { grid-template-columns: repeat(6, 1fr); }
+
+  .card {
+    aspect-ratio: 3/4;
+    cursor: pointer;
+    perspective: 600px;
+  }
+
+  .card-inner {
+    width: 100%; height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+    border-radius: 10px;
+  }
+
+  .card.flipped .card-inner,
+  .card.matched .card-inner { transform: rotateY(180deg); }
+
+  .card-face {
+    position: absolute; inset: 0;
+    border-radius: 10px;
+    backface-visibility: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem;
+  }
+
+  .card-grid.easy .card-face  { font-size: 1.8rem; }
+  .card-grid.medium .card-face { font-size: 1.4rem; }
+  .card-grid.hard .card-face  { font-size: 1.1rem; }
+
+  .card-back-face {
+    background: linear-gradient(135deg, var(--card-back), var(--card-back2));
+    box-shadow: 0 3px 10px rgba(74,144,217,0.3);
+  }
+
+  .card-back-face::after {
+    content: '✦';
+    color: rgba(255,255,255,0.3);
+    font-size: 1rem;
+  }
+
+  .card-front-face {
+    background: var(--surface);
+    transform: rotateY(180deg);
+    box-shadow: 0 3px 10px var(--shadow);
+    border: 2px solid #e8e4dc;
+  }
+
+  .card.matched .card-front-face {
+    border-color: var(--green);
+    background: #f0fff6;
+    box-shadow: 0 3px 16px rgba(39,174,96,0.2);
+  }
+
+  .card:not(.flipped):not(.matched):hover .card-inner {
+    transform: translateY(-3px) rotateY(8deg);
+  }
+
+  /* ── WIN SCREEN ── */
+  .win-screen {
+    text-align: center;
+    padding-top: 20px;
+    width: 100%;
+  }
+
+  .win-emoji { font-size: 5rem; margin-bottom: 16px; }
+
+  .win-title {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: var(--text);
+    letter-spacing: -1px;
+    margin-bottom: 6px;
+  }
+
+  .win-subtitle {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+
+  .win-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 28px;
+  }
+
+  .win-stat {
+    background: var(--surface);
+    border: 2px solid #e8e4dc;
+    border-radius: var(--radius);
+    padding: 16px 8px;
+    text-align: center;
+  }
+
+  .win-stat .big {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .win-stat .small {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+  }
+
+  .star-rating {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    font-size: 2.2rem;
+    margin-bottom: 28px;
+  }
+
+  .star { transition: transform 0.3s; }
+  .star.lit { animation: starPop 0.4s ease; }
+  @keyframes starPop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.4)} }
+
+  .new-record {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border-radius: 50px;
+    padding: 6px 18px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: inline-block;
+  }
+
+  /* ── LEADERBOARD SCREEN ── */
+  .lb-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-top: 8px;
+  }
+
+  .lb-title {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--text);
+  }
+
+  .lb-tabs {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .lb-tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    border: 2px solid #e8e4dc;
+    border-radius: 10px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--muted);
+    cursor: pointer;
+    background: var(--surface);
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .lb-tab.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: #fff8ec;
+  }
+
+  .lb-list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+
+  .lb-row {
+    background: var(--surface);
+    border: 2px solid #e8e4dc;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  .lb-row:nth-child(1) { border-color: #f5d98a; background: #fffbf0; }
+  .lb-row:nth-child(2) { border-color: #d0d8e0; background: #f8fafc; }
+  .lb-row:nth-child(3) { border-color: #e8c9a0; background: #fdf8f4; }
+
+  .lb-rank { font-size: 1.1rem; font-weight: 900; color: var(--muted); min-width: 28px; }
+  .lb-row:nth-child(1) .lb-rank::before { content: '🥇'; font-size: 1.2rem; }
+  .lb-row:nth-child(2) .lb-rank::before { content: '🥈'; font-size: 1.2rem; }
+  .lb-row:nth-child(3) .lb-rank::before { content: '🥉'; font-size: 1.2rem; }
+  .lb-row:nth-child(n+4) .lb-rank { font-size: 0.85rem; }
+
+  .lb-name { font-size: 0.95rem; font-weight: 800; color: var(--text); flex: 1; }
+  .lb-meta { font-size: 0.7rem; color: var(--muted); }
+  .lb-score { font-size: 1rem; font-weight: 900; color: var(--accent); }
+
+  .lb-empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    padding: 40px 20px;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--text);
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* nav dots */
+  .nav-dots {
+    display: flex;
+    gap: 20px;
+    margin-top: 28px;
+  }
+
+  .nav-dot-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 6px 0;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .nav-dot-btn:hover, .nav-dot-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  /* combo banner */
+  .combo-banner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: var(--accent);
+    color: #fff;
+    padding: 14px 32px;
+    border-radius: 50px;
+    font-size: 1.4rem;
+    font-weight: 900;
+    z-index: 500;
+    pointer-events: none;
+    box-shadow: 0 8px 32px rgba(245,166,35,0.5);
+  }
+  .combo-banner.pop {
+    animation: comboPop 0.8s ease forwards;
+  }
+  @keyframes comboPop {
+    0%  { transform: translate(-50%, -50%) scale(0); opacity:1; }
+    30% { transform: translate(-50%, -50%) scale(1.1); opacity:1; }
+    70% { transform: translate(-50%, -50%) scale(1); opacity:1; }
+    100%{ transform: translate(-50%, -55%) scale(0.8); opacity:0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HOME SCREEN -->
+<div class="screen active" id="homeScreen">
+  <div class="logo">Memory<span>.</span></div>
+  <p class="tagline">Flip • Match • Remember</p>
+
+  <div class="card-preview">
+    <div class="preview-card">🦋</div>
+    <div class="preview-card">🐙</div>
+    <div class="preview-card">🦊</div>
+    <div class="preview-card">🌙</div>
+  </div>
+
+  <div class="name-section">
+    <label>Your name</label>
+    <input type="text" id="playerName" placeholder="Enter your name…" maxlength="16">
+  </div>
+
+  <div class="level-select">
+    <label>Choose difficulty</label>
+    <div class="level-cards">
+      <div class="level-card selected" data-level="easy" onclick="selectLevel(this)">
+        <div class="icon">🌱</div>
+        <div class="name">Easy</div>
+        <div class="pairs">8 pairs</div>
+      </div>
+      <div class="level-card" data-level="medium" onclick="selectLevel(this)" id="mediumCard">
+        <div class="icon">🔥</div>
+        <div class="name">Medium</div>
+        <div class="pairs">10 pairs</div>
+        <div class="lock" id="mediumLock">🔒 Beat Easy first</div>
+      </div>
+      <div class="level-card" data-level="hard" onclick="selectLevel(this)" id="hardCard">
+        <div class="icon">💀</div>
+        <div class="name">Hard</div>
+        <div class="pairs">15 pairs</div>
+        <div class="lock" id="hardLock">🔒 Beat Medium first</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" onclick="startGame()">Play Now</button>
+
+  <div class="nav-dots">
+    <button class="nav-dot-btn active" onclick="showScreen('homeScreen')">Home</button>
+    <button class="nav-dot-btn" onclick="showScreen('leaderboardScreen')">Leaderboard</button>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div class="screen" id="gameScreen">
+  <div class="game-header">
+    <button class="back-btn" onclick="goHome()">← Home</button>
+    <div class="level-badge" id="levelBadge">Easy</div>
+    <div class="game-stats">
+      <div class="stat-pill">
+        <div class="val" id="movesVal">0</div>
+        <div class="lbl">Moves</div>
+      </div>
+      <div class="stat-pill">
+        <div class="val" id="timerVal">0:00</div>
+        <div class="lbl">Time</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <div class="card-grid" id="cardGrid"></div>
+</div>
+
+<!-- WIN SCREEN -->
+<div class="screen" id="winScreen">
+  <div class="win-screen">
+    <div class="win-emoji" id="winEmoji">🎉</div>
+    <div class="win-title">Well done!</div>
+    <div class="win-subtitle" id="winSubtitle">You matched all pairs</div>
+
+    <div class="star-rating" id="starRating">
+      <span class="star">⭐</span>
+      <span class="star">⭐</span>
+      <span class="star">⭐</span>
+    </div>
+
+    <div id="newRecordBadge" style="display:none">
+      <div class="new-record">🏆 New Record!</div>
+    </div>
+
+    <div class="win-stats-grid">
+      <div class="win-stat">
+        <div class="big" id="winMoves">—</div>
+        <div class="small">Moves</div>
+      </div>
+      <div class="win-stat">
+        <div class="big" id="winTime">—</div>
+        <div class="small">Time</div>
+      </div>
+      <div class="win-stat">
+        <div class="big" id="winScore">—</div>
+        <div class="small">Score</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="startGame()">Play Again</button>
+    <button class="btn btn-ghost" onclick="showScreen('homeScreen')">Change Level</button>
+  </div>
+</div>
+
+<!-- LEADERBOARD SCREEN -->
+<div class="screen" id="leaderboardScreen">
+  <div class="lb-header">
+    <div class="lb-title">Leaderboard 🏆</div>
+    <button class="btn btn-ghost btn-small" onclick="showScreen('homeScreen')">← Back</button>
+  </div>
+
+  <div class="lb-tabs">
+    <button class="lb-tab active" onclick="showLbTab('easy', this)">Easy</button>
+    <button class="lb-tab" onclick="showLbTab('medium', this)">Medium</button>
+    <button class="lb-tab" onclick="showLbTab('hard', this)">Hard</button>
+  </div>
+
+  <div class="lb-list" id="lbList"></div>
+</div>
+
+<!-- TOAST & COMBO -->
+<div class="toast" id="toast"></div>
+<div class="combo-banner" id="comboBanner"></div>
+
+<script>
+// ───────────────────────────────────────────
+// CONFIG
+// ───────────────────────────────────────────
+const LEVELS = {
+  easy:   { cols: 4, pairs: 8,  label: 'Easy 🌱',   timeBonus: 30 },
+  medium: { cols: 5, pairs: 10, label: 'Medium 🔥',  timeBonus: 25 },
+  hard:   { cols: 6, pairs: 15, label: 'Hard 💀',   timeBonus: 20 },
+};
+
+const ALL_EMOJIS = ['🦋','🐙','🦊','🌙','🔮','🎸','🌺','🐉','🎯','🍉','🦁','🐬','🌈','🦄','🍄'];
+
+// ───────────────────────────────────────────
+// STATE
+// ───────────────────────────────────────────
+let currentLevel = 'easy';
+let flipped = [], matched = 0, moves = 0, locked = false;
+let startTime = null, timerInterval = null, totalPairs = 0;
+let combo = 0;
+let audioCtx = null;
+
+// ───────────────────────────────────────────
+// AUDIO (Web Audio API — no files needed)
+// ───────────────────────────────────────────
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playTone(freq, type, duration, vol = 0.3) {
+  try {
+    const ctx = getAudio();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.5, ctx.currentTime + duration * 0.5);
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+  } catch(e) {}
+}
+
+function playFlip()  { playTone(400, 'sine', 0.08, 0.15); }
+function playMiss()  { playTone(200, 'sawtooth', 0.15, 0.2); }
+function playMatch() {
+  playTone(520, 'sine', 0.1, 0.25);
+  setTimeout(() => playTone(660, 'sine', 0.1, 0.25), 80);
+  setTimeout(() => playTone(780, 'sine', 0.12, 0.3), 160);
+}
+function playCombo() {
+  [520, 660, 880, 1040].forEach((f, i) => setTimeout(() => playTone(f, 'sine', 0.12, 0.3), i * 60));
+}
+function playWin() {
+  const notes = [523, 659, 784, 1047, 784, 659, 784, 1047];
+  notes.forEach((f, i) => setTimeout(() => playTone(f, 'sine', 0.2, 0.35), i * 100));
+}
+
+// ───────────────────────────────────────────
+// UTILS
+// ───────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60), s = secs % 60;
+  return `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'leaderboardScreen') renderLeaderboard('easy');
+}
+
+function showToast(msg, duration = 2000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function showCombo(n) {
+  const b = document.getElementById('comboBanner');
+  b.textContent = `${n}x Combo! 🔥`;
+  b.classList.remove('pop');
+  void b.offsetWidth;
+  b.classList.add('pop');
+  playCombo();
+}
+
+// ───────────────────────────────────────────
+// UNLOCK SYSTEM
+// ───────────────────────────────────────────
+function getUnlocks() {
+  return JSON.parse(localStorage.getItem('memoryUnlocks') || '{"easy":true,"medium":false,"hard":false}');
+}
+
+function unlock(level) {
+  const u = getUnlocks();
+  u[level] = true;
+  localStorage.setItem('memoryUnlocks', JSON.stringify(u));
+}
+
+function refreshLevelCards() {
+  const u = getUnlocks();
+  const medium = document.getElementById('mediumCard');
+  const hard = document.getElementById('hardCard');
+  const mLock = document.getElementById('mediumLock');
+  const hLock = document.getElementById('hardLock');
+
+  if (u.medium) { medium.classList.remove('locked'); if(mLock) mLock.remove(); }
+  else medium.classList.add('locked');
+
+  if (u.hard) { hard.classList.remove('locked'); if(hLock) hLock.remove(); }
+  else hard.classList.add('locked');
+}
+
+function selectLevel(el) {
+  const u = getUnlocks();
+  const lvl = el.dataset.level;
+  if (!u[lvl]) return;
+  document.querySelectorAll('.level-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  currentLevel = lvl;
+}
+
+// ───────────────────────────────────────────
+// SUPABASE SETUP
+// ───────────────────────────────────────────
+const SUPABASE_URL = 'https://ivfhdbepquhxraecqsjt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2ZmhkYmVwcXVoeHJhZWNxc2p0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MjA1ODEsImV4cCI6MjA4Njk5NjU4MX0.pgAJkBsfaoawvrFVwEoRDcHSo9NgVfIj1alDtx3iLrI';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ───────────────────────────────────────────
+// LEADERBOARD
+// ───────────────────────────────────────────
+async function saveScore(level, entry) {
+  try {
+    await sb.from('scores').insert({
+      name: entry.name,
+      level: level,
+      score: entry.score,
+      moves: entry.moves,
+      time: entry.time,
+    });
+  } catch(e) {
+    // fallback: save locally if offline
+    let board = JSON.parse(localStorage.getItem(`memoryBoard_${level}`) || '[]');
+    board.push(entry); board.sort((a,b) => b.score - a.score);
+    localStorage.setItem(`memoryBoard_${level}`, JSON.stringify(board.slice(0,10)));
+  }
+}
+
+async function isRecord(level, score) {
+  try {
+    const { data } = await sb.from('scores')
+      .select('score').eq('level', level)
+      .order('score', { ascending: false }).limit(10);
+    if (!data || data.length < 10) return true;
+    return score > data[data.length - 1].score;
+  } catch(e) { return false; }
+}
+
+async function renderLeaderboard(level) {
+  const list = document.getElementById('lbList');
+  list.innerHTML = '<div class="lb-empty">Loading…</div>';
+  try {
+    const { data, error } = await sb.from('scores')
+      .select('name, score, moves, time')
+      .eq('level', level)
+      .order('score', { ascending: false })
+      .limit(10);
+
+    if (error || !data || !data.length) {
+      list.innerHTML = '<div class="lb-empty">No scores yet.<br>Be the first to play!</div>';
+      return;
+    }
+
+    list.innerHTML = data.map((e, i) => `
+      <div class="lb-row">
+        <div class="lb-rank">${i >= 3 ? i+1 : ''}</div>
+        <div>
+          <div class="lb-name">${e.name || 'Anonymous'}</div>
+          <div class="lb-meta">${e.moves} moves · ${formatTime(e.time)}</div>
+        </div>
+        <div class="lb-score">${e.score}</div>
+      </div>
+    `).join('');
+  } catch(e) {
+    list.innerHTML = '<div class="lb-empty">Couldn\'t load scores.<br>Check your connection.</div>';
+  }
+}
+
+function showLbTab(level, btn) {
+  document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderLeaderboard(level);
+}
+
+// ───────────────────────────────────────────
+// GAME LOGIC
+// ───────────────────────────────────────────
+function goHome() {
+  clearInterval(timerInterval);
+  showScreen('homeScreen');
+}
+
+function startGame() {
+  // resume audio context on user gesture
+  try { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); } catch(e){}
+
+  const cfg = LEVELS[currentLevel];
+  totalPairs = cfg.pairs;
+  flipped = []; matched = 0; moves = 0; locked = false; combo = 0;
+  startTime = null;
+  clearInterval(timerInterval);
+
+  document.getElementById('movesVal').textContent = '0';
+  document.getElementById('timerVal').textContent = '0:00';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('levelBadge').textContent = cfg.label;
+
+  const grid = document.getElementById('cardGrid');
+  grid.className = `card-grid ${currentLevel}`;
+
+  const emojis = shuffle(ALL_EMOJIS).slice(0, cfg.pairs);
+  const cards = shuffle([...emojis, ...emojis]);
+
+  grid.innerHTML = '';
+  cards.forEach((emoji, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.emoji = emoji;
+    card.innerHTML = `<div class="card-inner">
+      <div class="card-face card-back-face"></div>
+      <div class="card-face card-front-face">${emoji}</div>
+    </div>`;
+    card.addEventListener('click', () => flipCard(card));
+    // stagger entrance
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.8)';
+    setTimeout(() => {
+      card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+      card.style.opacity = '1';
+      card.style.transform = 'scale(1)';
+    }, i * 30);
+    grid.appendChild(card);
+  });
+
+  showScreen('gameScreen');
+}
+
+function startTimer() {
+  startTime = Date.now();
+  timerInterval = setInterval(() => {
+    const secs = Math.floor((Date.now() - startTime) / 1000);
+    document.getElementById('timerVal').textContent = formatTime(secs);
+  }, 500);
+}
+
+function flipCard(card) {
+  if (locked || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+  if (!startTime) startTimer();
+
+  playFlip();
+  card.classList.add('flipped');
+  flipped.push(card);
+
+  if (flipped.length === 2) {
+    locked = true;
+    moves++;
+    document.getElementById('movesVal').textContent = moves;
+
+    const [a, b] = flipped;
+    if (a.dataset.emoji === b.dataset.emoji) {
+      // MATCH
+      setTimeout(() => {
+        a.classList.add('matched'); b.classList.add('matched');
+        a.classList.remove('flipped'); b.classList.remove('flipped');
+        matched++;
+        combo++;
+        playMatch();
+
+        const pct = (matched / totalPairs) * 100;
+        document.getElementById('progressBar').style.width = pct + '%';
+
+        if (combo >= 3) showCombo(combo);
+
+        flipped = []; locked = false;
+        if (matched === totalPairs) setTimeout(winGame, 300);
+      }, 350);
+    } else {
+      // MISS
+      combo = 0;
+      setTimeout(() => {
+        playMiss();
+        a.classList.remove('flipped'); b.classList.remove('flipped');
+        flipped = []; locked = false;
+      }, 800);
+    }
+  }
+}
+
+function calcScore(moves, timeSecs, pairs) {
+  const par = pairs * 2.5; // expected moves
+  const moveBonus = Math.max(0, par - moves) * 10;
+  const timeBonus = Math.max(0, 300 - timeSecs) * 2;
+  return Math.round(1000 + moveBonus + timeBonus);
+}
+
+function getStars(moves, pairs) {
+  const par = pairs * 2.5;
+  if (moves <= par) return 3;
+  if (moves <= par * 1.4) return 2;
+  return 1;
+}
+
+async function winGame() {
+  clearInterval(timerInterval);
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const score = calcScore(moves, elapsed, totalPairs);
+  const stars = getStars(moves, totalPairs);
+  const name = document.getElementById('playerName').value.trim() || 'Anonymous';
+
+  playWin();
+
+  // unlock next level
+  if (currentLevel === 'easy') { unlock('medium'); refreshLevelCards(); }
+  if (currentLevel === 'medium') { unlock('hard'); refreshLevelCards(); }
+
+  // check record then save
+  const isNew = await isRecord(currentLevel, score);
+  await saveScore(currentLevel, { name, score, moves, time: elapsed, date: Date.now() });
+
+  // win screen
+  document.getElementById('winMoves').textContent = moves;
+  document.getElementById('winTime').textContent = formatTime(elapsed);
+  document.getElementById('winScore').textContent = score;
+  document.getElementById('winSubtitle').textContent = `Level: ${LEVELS[currentLevel].label}`;
+  document.getElementById('newRecordBadge').style.display = isNew ? 'block' : 'none';
+
+  document.getElementById('winEmoji').textContent = stars === 3 ? '🏆' : stars === 2 ? '🎊' : '🎉';
+
+  // stars animation
+  const starEls = document.querySelectorAll('#starRating .star');
+  starEls.forEach((s, i) => {
+    s.textContent = i < stars ? '⭐' : '☆';
+    if (i < stars) {
+      setTimeout(() => s.classList.add('lit'), i * 200 + 300);
+    }
+  });
+
+  showScreen('winScreen');
+}
+
+// ───────────────────────────────────────────
+// INIT
+// ───────────────────────────────────────────
+refreshLevelCards();
+</script>
+</body>
+</html>
